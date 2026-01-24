@@ -1,0 +1,21 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/api/milestones/route": "app/api/milestones/route.js",
+  "/api/milestones/[id]/route": "app/api/milestones/[id]/route.js",
+  "/api/projects/[id]/route": "app/api/projects/[id]/route.js",
+  "/api/projects/route": "app/api/projects/route.js",
+  "/api/reminders/[id]/route": "app/api/reminders/[id]/route.js",
+  "/api/reminders/route": "app/api/reminders/route.js",
+  "/api/reminders/send/route": "app/api/reminders/send/route.js",
+  "/api/weekly-progress/[id]/route": "app/api/weekly-progress/[id]/route.js",
+  "/api/weekly-progress/route": "app/api/weekly-progress/route.js",
+  "/login/page": "app/login/page.js",
+  "/projects/[id]/milestones/new/page": "app/projects/[id]/milestones/new/page.js",
+  "/projects/new/page": "app/projects/new/page.js",
+  "/projects/page": "app/projects/page.js",
+  "/reminders/page": "app/reminders/page.js",
+  "/weekly-progress/new/page": "app/weekly-progress/new/page.js",
+  "/page": "app/page.js",
+  "/projects/[id]/page": "app/projects/[id]/page.js"
+}

@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+  // Note: The PrismaClient will use the value from lib/config.ts at runtime
+}
+
+model Project {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  majorGoal   String
+  status      String    @default("active") // active | completed | on-hold
+  createdBy   String?   // Email of the user who created the project (optional for legacy projects)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  milestones      Milestone[]
+  emailReminders  EmailReminder[]
+  
+  @@map("projects")
+}
+
+model Milestone {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  projectId   String   @db.ObjectId
+  title       String
+  description String?
+  status      String    @default("pending") // pending | in-progress | completed
+  isCurrent   Boolean   @default(false)
+  targetDate  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  project        Project         @relation(fields: [projectId], references: [id])
+  weeklyProgress WeeklyProgress[]
+  
+  @@map("milestones")
+}
+
+model WeeklyProgress {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  milestoneId      String   @db.ObjectId
+  weekStartDate    DateTime  // Sunday of the week
+  weekEndDate      DateTime  // Saturday of the week
+  completedThisWeek String   // JSON array stored as string
+  plannedForNextWeek String  // JSON array stored as string
+  taskDelays       String?   // JSON array of delay reasons for incomplete tasks
+  goalsAchieved    Boolean   @default(false)
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  milestone Milestone @relation(fields: [milestoneId], references: [id])
+  
+  @@map("weekly_progress")
+}
+
+model EmailReminder {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  projectId     String   @db.ObjectId
+  subject       String
+  message       String
+  recipientEmail String
+  reminderDate  DateTime
+  status        String   @default("scheduled") // scheduled | sent | cancelled
+  createdAt     DateTime @default(now())
+  
+  project Project @relation(fields: [projectId], references: [id])
+  
+  @@map("email_reminders")
+}
