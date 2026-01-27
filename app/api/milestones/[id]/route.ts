@@ -21,6 +21,10 @@ export async function GET(
       where: { id: params.id },
       include: {
         project: true,
+        weeklyProgress: {
+          orderBy: { weekStartDate: "desc" },
+          take: 1, // Get the most recent week
+        },
       },
     });
 

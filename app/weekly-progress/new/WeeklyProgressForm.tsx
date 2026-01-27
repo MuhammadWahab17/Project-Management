@@ -39,6 +39,17 @@ export default function WeeklyProgressForm() {
     notes: "",
   });
 
+  // Calculate progress percentage
+  const calculateProgress = () => {
+    const tasks = formData.completedThisWeek.filter(t => t.trim() !== "");
+    if (tasks.length === 0) return 0;
+    const completedCount = formData.taskDelays.filter((d, i) => {
+      const task = formData.completedThisWeek[i];
+      return task && task.trim() !== "" && d.isCompleted;
+    }).length;
+    return Math.round((completedCount / tasks.length) * 100 * 100) / 100; // Round to 2 decimal places
+  };
+
   useEffect(() => {
     const sunday = getCurrentWeekSunday();
     const saturday = getCurrentWeekSaturday();
@@ -64,6 +75,42 @@ export default function WeeklyProgressForm() {
             setWeekNumber(currentWeek);
             setIsoWeek(currentIsoWeek);
           }
+          
+          // Check if there's a previous week's progress and carry over incomplete tasks
+          if (data.weeklyProgress && data.weeklyProgress.length > 0) {
+            const previousWeek = data.weeklyProgress[0];
+            const previousCompletedTasks = JSON.parse(previousWeek.completedThisWeek || "[]");
+            const previousTaskDelays: Array<{ task: string; isCompleted: boolean; delayReasons?: string[]; delayReasonText?: string }> = 
+              previousWeek.taskDelays ? JSON.parse(previousWeek.taskDelays) : [];
+            
+            // Find incomplete tasks from previous week
+            const incompleteTasks: string[] = [];
+            const incompleteTaskDelays: TaskDelay[] = [];
+            
+            previousCompletedTasks.forEach((task: string, index: number) => {
+              const taskDelay = previousTaskDelays[index] || { task, isCompleted: false };
+              // Only carry over tasks that are not completed
+              if (!taskDelay.isCompleted && task.trim() !== "") {
+                incompleteTasks.push(task);
+                incompleteTaskDelays.push({
+                  task,
+                  isCompleted: false, // Reset completion status for new week
+                  delayReasons: [], // Clear delay reasons for new week
+                  delayReasonText: undefined,
+                });
+              }
+            });
+            
+            // Add incomplete tasks to the current week's tasks
+            if (incompleteTasks.length > 0) {
+              setFormData((prev) => ({
+                ...prev,
+                completedThisWeek: [...incompleteTasks, ""],
+                taskDelays: [...incompleteTaskDelays, { task: "", isCompleted: false, delayReasons: [] }],
+              }));
+            }
+          }
+          
           setFetchingProject(false);
         })
         .catch((error) => {
@@ -177,7 +224,28 @@ export default function WeeklyProgressForm() {
       return;
     }
 
+    // Validate that at least one task is added
+    const validTasks = formData.completedThisWeek.filter((t) => t.trim() !== "");
+    if (validTasks.length === 0) {
+      setToast({ message: "Please add at least one task for this week", type: "error", isVisible: true });
+      setLoading(false);
+      return;
+    }
+
     try {
+      // Prepare taskDelays - ensure it matches completedThisWeek length
+      const taskDelaysForSave = validTasks.map((task, index) => {
+        const originalIndex = formData.completedThisWeek.indexOf(task);
+        return formData.taskDelays[originalIndex] || { task, isCompleted: false, delayReasons: [] };
+      });
+
+      // Calculate goalsAchieved based on all tasks being completed
+      const allTasksCompleted = validTasks.every((task, index) => {
+        const originalIndex = formData.completedThisWeek.indexOf(task);
+        const delay = formData.taskDelays[originalIndex];
+        return delay?.isCompleted === true;
+      });
+
       const response = await fetch("/api/weekly-progress", {
         method: "POST",
         headers: {
@@ -185,15 +253,12 @@ export default function WeeklyProgressForm() {
         },
         body: JSON.stringify({
           ...formData,
-          completedThisWeek: JSON.stringify(
-            formData.completedThisWeek.filter((t) => t.trim() !== "")
-          ),
+          completedThisWeek: JSON.stringify(validTasks),
           plannedForNextWeek: JSON.stringify(
             formData.plannedForNextWeek.filter((t) => t.trim() !== "")
           ),
-          taskDelays: JSON.stringify(
-            formData.taskDelays.filter((d, i) => formData.plannedForNextWeek[i]?.trim() !== "")
-          ),
+          taskDelays: JSON.stringify(taskDelaysForSave),
+          goalsAchieved: allTasksCompleted,
           weekStartDate: new Date(formData.weekStartDate),
           weekEndDate: new Date(formData.weekEndDate),
         }),
@@ -266,9 +331,16 @@ export default function WeeklyProgressForm() {
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Completed This Week *
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Tasks This Week *
+                </label>
+                {formData.completedThisWeek.filter(t => t.trim() !== "").length > 0 && (
+                  <div className="text-sm font-semibold text-blue-600">
+                    Progress: {calculateProgress()}%
+                  </div>
+                )}
+              </div>
               {formData.completedThisWeek.map((task, index) => {
                 const taskDelay = formData.taskDelays[index] || { task: task, isCompleted: false, delayReasons: [] };
                 const isCompleted = taskDelay.isCompleted || false;
@@ -297,15 +369,15 @@ export default function WeeklyProgressForm() {
                     
                     {/* Task completion checkbox */}
                     <div className="mb-3">
-                      <label className="flex items-center">
+                      <label className="flex items-center cursor-pointer">
                         <input
                           type="checkbox"
                           checked={isCompleted}
                           onChange={(e) => updateTaskCompletion(index, e.target.checked)}
-                          className="mr-2 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          className="mr-2 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
                         />
                         <span className="text-sm font-medium text-gray-700">
-                          Task completed
+                          ✓ Mark as completed
                         </span>
                       </label>
                     </div>
@@ -370,7 +442,7 @@ export default function WeeklyProgressForm() {
 
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Planned For Next Week *
+                Planned For Next Week
               </label>
               {formData.plannedForNextWeek.map((task, index) => (
                 <div key={index} className="flex gap-2 mb-2">

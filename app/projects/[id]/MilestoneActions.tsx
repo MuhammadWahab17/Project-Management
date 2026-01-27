@@ -92,12 +92,12 @@ export default function MilestoneActions({
 
   return (
     <>
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
         {currentStatus !== "completed" && (
           <button
             onClick={handleMarkCompleted}
             disabled={updating || updatingCurrent}
-            className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition-colors whitespace-nowrap disabled:opacity-50"
+            className="px-3 py-2 sm:py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition-colors whitespace-nowrap disabled:opacity-50 w-full sm:w-auto text-center"
           >
             {updating ? "Updating..." : "Mark Complete"}
           </button>
@@ -105,7 +105,7 @@ export default function MilestoneActions({
         <button
           onClick={handleToggleCurrent}
           disabled={updating || updatingCurrent}
-          className={`px-3 py-1.5 text-xs font-medium border rounded-lg transition-colors whitespace-nowrap disabled:opacity-50 ${
+          className={`px-3 py-2 sm:py-1.5 text-xs font-medium border rounded-lg transition-colors whitespace-nowrap disabled:opacity-50 w-full sm:w-auto text-center ${
             isCurrent
               ? "text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200"
               : "text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-200"

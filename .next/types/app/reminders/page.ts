@@ -1,4 +1,4 @@
-// File: C:\Users\This PC\Downloads\new-project-main\app\reminders\page.tsx
+// File: E:\Project Management\app\reminders\page.tsx
 import * as entry from '../../../../app/reminders/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

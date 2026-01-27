@@ -43,6 +43,17 @@ export default function EditWeeklyProgressModal({
     isVisible: false,
   });
 
+  // Calculate progress percentage
+  const calculateProgress = () => {
+    const tasks = completedTasks.filter(t => t.trim() !== "");
+    if (tasks.length === 0) return 0;
+    const completedCount = taskDelays.filter((d, i) => {
+      const task = completedTasks[i];
+      return task && task.trim() !== "" && d.isCompleted;
+    }).length;
+    return Math.round((completedCount / tasks.length) * 100 * 100) / 100; // Round to 2 decimal places
+  };
+
   const showToast = (message: string, type: "success" | "error" | "info" = "info") => {
     setToast({ message, type, isVisible: true });
   };
@@ -137,16 +148,28 @@ export default function EditWeeklyProgressModal({
     setLoading(true);
 
     try {
+      // Prepare taskDelays - ensure it matches completedTasks length
+      const validTasks = completedTasks.filter((t) => t.trim() !== "");
+      const taskDelaysForSave = validTasks.map((task, index) => {
+        const originalIndex = completedTasks.indexOf(task);
+        return taskDelays[originalIndex] || { task, isCompleted: false, delayReasons: [] };
+      });
+
+      // Calculate goalsAchieved based on all tasks being completed
+      const allTasksCompleted = validTasks.every((task, index) => {
+        const originalIndex = completedTasks.indexOf(task);
+        const delay = taskDelays[originalIndex];
+        return delay?.isCompleted === true;
+      });
+
       const response = await fetch(`/api/weekly-progress/${progressId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          completedThisWeek: JSON.stringify(completedTasks.filter((t) => t.trim() !== "")),
+          completedThisWeek: JSON.stringify(validTasks),
           plannedForNextWeek: JSON.stringify(plannedTasks.filter((t) => t.trim() !== "")),
-          taskDelays: JSON.stringify(
-            taskDelays.filter((d, i) => completedTasks[i]?.trim() !== "")
-          ),
-          goalsAchieved,
+          taskDelays: JSON.stringify(taskDelaysForSave),
+          goalsAchieved: allTasksCompleted,
           notes: notes.trim() || null,
         }),
       });
@@ -182,9 +205,16 @@ export default function EditWeeklyProgressModal({
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Completed This Week
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Tasks This Week
+                </label>
+                {completedTasks.filter(t => t.trim() !== "").length > 0 && (
+                  <div className="text-sm font-semibold text-blue-600">
+                    Progress: {calculateProgress()}%
+                  </div>
+                )}
+              </div>
               <div className="space-y-3">
                 {completedTasks.map((task, index) => {
                   const taskDelay = taskDelays[index] || { task: task, isCompleted: false, delayReasons: [] };
@@ -212,15 +242,15 @@ export default function EditWeeklyProgressModal({
                       
                       {/* Task completion checkbox */}
                       <div className="mb-3">
-                        <label className="flex items-center">
+                        <label className="flex items-center cursor-pointer">
                           <input
                             type="checkbox"
                             checked={isCompleted}
                             onChange={(e) => updateTaskCompletion(index, e.target.checked)}
-                            className="mr-2 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            className="mr-2 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
                           />
                           <span className="text-sm font-medium text-gray-700">
-                            Task completed
+                            ✓ Mark as completed
                           </span>
                         </label>
                       </div>

@@ -243,16 +243,16 @@ export default async function ProjectDetailPage({
                       }`}
                     >
                           {/* Milestone Header */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="text-lg font-semibold text-gray-900">{milestone.title}</h3>
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-0 mb-4">
+                        <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                                <h3 className="text-base sm:text-lg font-semibold text-gray-900 break-words">{milestone.title}</h3>
                             {milestone.isCurrent && (
-                                  <span className="px-2 py-1 text-xs font-semibold bg-blue-600 text-white rounded-full">
+                                  <span className="px-2 py-1 text-xs font-semibold bg-blue-600 text-white rounded-full whitespace-nowrap flex-shrink-0">
                                     CURRENT
                               </span>
                             )}
-                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                <span className={`px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap flex-shrink-0 ${
                                 milestone.status === "completed"
                                     ? "bg-green-100 text-green-800"
                                   : milestone.status === "in-progress"
@@ -263,24 +263,26 @@ export default async function ProjectDetailPage({
                             </span>
                           </div>
                           {milestone.description && (
-                                <p className="text-gray-600 mb-3">{milestone.description}</p>
+                                <p className="text-gray-600 mb-3 break-words">{milestone.description}</p>
                           )}
                           {milestone.targetDate && (
-                                <div className="inline-flex items-center gap-2 text-sm text-gray-600">
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="inline-flex items-center gap-2 text-sm text-gray-600 flex-wrap">
+                                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                               </svg>
-                              Target: {formatDate(milestone.targetDate)}
+                              <span className="whitespace-nowrap">Target: {formatDate(milestone.targetDate)}</span>
                             </div>
                           )}
                         </div>
                             {canEditProject && (
-                              <MilestoneActions
-                                milestoneId={milestone.id}
-                                currentStatus={milestone.status}
-                                isCurrent={milestone.isCurrent}
-                                canEdit={canEditProject}
-                              />
+                              <div className="flex-shrink-0 w-full sm:w-auto">
+                                <MilestoneActions
+                                  milestoneId={milestone.id}
+                                  currentStatus={milestone.status}
+                                  isCurrent={milestone.isCurrent}
+                                  canEdit={canEditProject}
+                                />
+                              </div>
                             )}
                       </div>
 
@@ -310,17 +312,32 @@ export default async function ProjectDetailPage({
                                 <>
                                   <div className="text-xs text-gray-500 mb-3">{progressCount} report{progressCount !== 1 ? 's' : ''}</div>
                                   <div className="space-y-2">
-                                    {milestone.weeklyProgress.slice(0, 2).map((progress) => (
-                                      <WeeklyProgressItem
-                                        key={progress.id}
-                                        progress={{
-                                          ...progress,
-                                          taskDelays: (progress as any).taskDelays || null,
-                                        }}
-                                        canEdit={canEditProject}
-                                        projectStartDate={project.createdAt}
-                                      />
-                                    ))}
+                                    {milestone.weeklyProgress.slice(0, 2).map((progress, index) => {
+                                      // Group progress by unique weekStartDate and assign sequential week numbers
+                                      const uniqueWeeks = Array.from(new Set(
+                                        milestone.weeklyProgress
+                                          .map(p => new Date(p.weekStartDate).getTime())
+                                          .sort((a, b) => a - b)
+                                      ));
+                                      const progressWeekStart = new Date(progress.weekStartDate).getTime();
+                                      const weekNumber = uniqueWeeks.findIndex(weekTime => weekTime === progressWeekStart) + 1;
+                                      return (
+                                        <WeeklyProgressItem
+                                          key={progress.id}
+                                          progress={{
+                                            ...progress,
+                                            taskDelays: (progress as any).taskDelays || null,
+                                          }}
+                                          canEdit={canEditProject}
+                                          projectStartDate={project.createdAt}
+                                          weekNumber={weekNumber}
+                                          allProgress={milestone.weeklyProgress.map(p => ({
+                                            id: p.id,
+                                            weekStartDate: p.weekStartDate,
+                                          }))}
+                                        />
+                                      );
+                                    })}
                                   </div>
                                 </>
                               ) : (
@@ -422,17 +439,43 @@ export default async function ProjectDetailPage({
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-[calc(100vh-400px)] overflow-y-auto">
-                    {allWeeklyProgress.map((progress) => (
-                      <WeeklyProgressItem
-                        key={progress.id}
-                        progress={{
-                          ...progress,
-                          taskDelays: (progress as any).taskDelays || null,
-                        }}
-                        canEdit={canEditProject}
-                        projectStartDate={project.createdAt}
-                      />
-                    ))}
+                    {allWeeklyProgress.map((progress) => {
+                      // Find which milestone this progress belongs to and calculate week number
+                      const milestone = project.milestones.find(m => 
+                        m.weeklyProgress.some(p => p.id === progress.id)
+                      );
+                      let weekNumber: number | undefined;
+                      let allProgressForMilestone: Array<{ id: string; weekStartDate: Date }> | undefined;
+                      
+                      if (milestone) {
+                        // Group progress by unique weekStartDate and assign sequential week numbers
+                        const uniqueWeeks = Array.from(new Set(
+                          milestone.weeklyProgress
+                            .map(p => new Date(p.weekStartDate).getTime())
+                            .sort((a, b) => a - b)
+                        ));
+                        const progressWeekStart = new Date(progress.weekStartDate).getTime();
+                        weekNumber = uniqueWeeks.findIndex(weekTime => weekTime === progressWeekStart) + 1;
+                        allProgressForMilestone = milestone.weeklyProgress.map(p => ({
+                          id: p.id,
+                          weekStartDate: p.weekStartDate,
+                        }));
+                      }
+                      
+                      return (
+                        <WeeklyProgressItem
+                          key={progress.id}
+                          progress={{
+                            ...progress,
+                            taskDelays: (progress as any).taskDelays || null,
+                          }}
+                          canEdit={canEditProject}
+                          projectStartDate={project.createdAt}
+                          weekNumber={weekNumber}
+                          allProgress={allProgressForMilestone}
+                        />
+                      );
+                    })}
                   </div>
                 )}
               </div>

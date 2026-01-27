@@ -1,4 +1,4 @@
-// File: C:\Users\This PC\Downloads\new-project-main\app\api\projects\[id]\route.ts
+// File: E:\Project Management\app\api\projects\[id]\route.ts
 import * as entry from '../../../../../../app/api/projects/[id]/route.js'
 import type { NextRequest } from 'next/server.js'
 
