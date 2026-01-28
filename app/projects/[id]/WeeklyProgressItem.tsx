@@ -55,21 +55,36 @@ export default function WeeklyProgressItem({ progress, canEdit, projectStartDate
   }
   
   const isoWeek = getISOWeek(weekStart);
-  const completedTasks = JSON.parse(progress.completedThisWeek || "[]");
+  const allCompletedTasks = JSON.parse(progress.completedThisWeek || "[]");
   const plannedTasks = JSON.parse(progress.plannedForNextWeek || "[]");
   
   // Use local state for task delays if available, otherwise parse from progress
   const taskDelays = localTaskDelays.length > 0 ? localTaskDelays : 
     (progress.taskDelays ? JSON.parse(progress.taskDelays) : []);
-
-  // Calculate progress percentage
+  
+  // Separate completed tasks from incomplete tasks
+  const completedTasks: string[] = [];
+  const incompleteTasks: Array<{ task: string; delay: { task: string; isCompleted: boolean; delayReasons?: string[]; delayReasonText?: string } }> = [];
+  
+  allCompletedTasks.forEach((task: string, idx: number) => {
+    const delay = taskDelays[idx] || taskDelays.find((d: { task: string; isCompleted: boolean; delayReasons?: string[]; delayReasonText?: string }) => d.task === task);
+    const isCompleted = delay?.isCompleted ?? false;
+    
+    if (isCompleted) {
+      completedTasks.push(task);
+    } else {
+      incompleteTasks.push({ task, delay: delay || { task, isCompleted: false, delayReasons: [] } });
+    }
+  });
+  
+  // Combine incomplete tasks with planned tasks for display
+  const allPlannedTasks = [...incompleteTasks.map(item => item.task), ...plannedTasks];
+  
+  // Calculate progress percentage based on all tasks (completed + incomplete)
   const calculateProgress = () => {
-    if (completedTasks.length === 0) return 0;
-    const completedCount = completedTasks.filter((task: string, index: number) => {
-      const delay = taskDelays[index];
-      return delay?.isCompleted === true;
-    }).length;
-    const percentage = (completedCount / completedTasks.length) * 100;
+    if (allCompletedTasks.length === 0) return 0;
+    const completedCount = completedTasks.length;
+    const percentage = (completedCount / allCompletedTasks.length) * 100;
     const rounded = Math.round(percentage * 100) / 100;
     // Ensure it's a valid number between 0 and 100
     return isNaN(rounded) ? 0 : Math.max(0, Math.min(100, rounded));
@@ -119,7 +134,7 @@ export default function WeeklyProgressItem({ progress, canEdit, projectStartDate
     const updatedDelays = [...taskDelays];
     if (!updatedDelays[taskIndex]) {
       updatedDelays[taskIndex] = { 
-        task: completedTasks[taskIndex], 
+        task: allCompletedTasks[taskIndex], 
         isCompleted: false, 
         delayReasons: [] 
       };
@@ -140,7 +155,7 @@ export default function WeeklyProgressItem({ progress, canEdit, projectStartDate
 
     try {
       // Calculate goalsAchieved based on all tasks being completed
-      const allTasksCompleted = completedTasks.every((task: string, index: number) => {
+      const allTasksCompleted = allCompletedTasks.every((task: string, index: number) => {
         const delay = updatedDelays[index];
         return delay?.isCompleted === true;
       });
@@ -149,7 +164,7 @@ export default function WeeklyProgressItem({ progress, canEdit, projectStartDate
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          completedThisWeek: JSON.stringify(completedTasks),
+          completedThisWeek: JSON.stringify(allCompletedTasks),
           plannedForNextWeek: JSON.stringify(plannedTasks),
           taskDelays: JSON.stringify(updatedDelays),
           goalsAchieved: allTasksCompleted,
@@ -230,7 +245,7 @@ export default function WeeklyProgressItem({ progress, canEdit, projectStartDate
           </div>
         </div>
 
-        {(completedTasks.length > 0 || plannedTasks.length > 0) && (
+        {(completedTasks.length > 0 || allPlannedTasks.length > 0) && (
           <div className="space-y-2 text-sm">
             {completedTasks.length > 0 && (
               <div className="bg-green-50 rounded border border-green-200 p-2 sm:p-3 overflow-hidden">
@@ -242,10 +257,12 @@ export default function WeeklyProgressItem({ progress, canEdit, projectStartDate
                 </div>
                 <ul className="space-y-2">
                   {completedTasks.map((task: string, idx: number) => {
-                    const delay = taskDelays[idx] || taskDelays.find((d: { task: string; isCompleted: boolean; delayReasons?: string[]; delayReasonText?: string }) => d.task === task);
-                    const isCompleted = delay?.isCompleted ?? false;
-                    const hasDelay = delay && !isCompleted && delay.delayReasons && delay.delayReasons.length > 0;
-                    const isUpdating = updatingTask === idx;
+                    // Find the original index in allCompletedTasks
+                    const originalIndex = allCompletedTasks.indexOf(task);
+                    const delay = taskDelays[originalIndex] || taskDelays.find((d: { task: string; isCompleted: boolean; delayReasons?: string[]; delayReasonText?: string }) => d.task === task);
+                    const isCompleted = delay?.isCompleted ?? true; // Should always be true for completedTasks
+                    const hasDelay = false; // Completed tasks don't have delays
+                    const isUpdating = updatingTask === originalIndex;
                     
                     return (
                       <li key={idx} className="text-xs sm:text-sm min-w-0">
@@ -255,7 +272,7 @@ export default function WeeklyProgressItem({ progress, canEdit, projectStartDate
                               <input
                                 type="checkbox"
                                 checked={isCompleted}
-                                onChange={() => handleToggleTaskCompletion(idx)}
+                                onChange={() => handleToggleTaskCompletion(originalIndex)}
                                 disabled={isUpdating}
                                 className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 text-green-600 border-gray-300 rounded focus:ring-green-500 focus:ring-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
                               />
@@ -300,7 +317,7 @@ export default function WeeklyProgressItem({ progress, canEdit, projectStartDate
                 </ul>
               </div>
             )}
-            {plannedTasks.length > 0 && (
+            {allPlannedTasks.length > 0 && (
               <div className="bg-blue-50 rounded border border-blue-200 p-2 sm:p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -309,8 +326,41 @@ export default function WeeklyProgressItem({ progress, canEdit, projectStartDate
                   <span className="text-xs font-semibold text-blue-700 uppercase">Planned</span>
                 </div>
                 <ul className="space-y-1 sm:space-y-2">
+                  {/* Show incomplete tasks with delay reasons */}
+                  {incompleteTasks.map((item, idx: number) => {
+                    const delay = item.delay;
+                    const hasDelay = delay && delay.delayReasons && delay.delayReasons.length > 0;
+                    return (
+                      <li key={`incomplete-${idx}`} className="text-xs sm:text-sm text-gray-700">
+                        <div className="flex items-start">
+                          <span className="text-red-600 mr-1.5 sm:mr-2 mt-0.5 flex-shrink-0">⚠</span>
+                          <div className="flex-1 min-w-0">
+                            <span className="break-words">{item.task}</span>
+                            {hasDelay && (
+                              <div className="mt-1 text-xs text-red-600">
+                                <span className="font-medium">
+                                  {delay.delayReasons?.map((reason: string, i: number) => {
+                                    const labels: Record<string, string> = {
+                                      'client': 'Delayed by client',
+                                      'developer': 'Delayed by developer',
+                                      'other': 'Other reason'
+                                    };
+                                    return labels[reason] || reason;
+                                  }).join(', ')}
+                                </span>
+                                {delay.delayReasonText && (
+                                  <span className="block mt-0.5 text-gray-600">{delay.delayReasonText}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                  {/* Show planned tasks */}
                   {plannedTasks.map((task: string, idx: number) => (
-                    <li key={idx} className="text-xs sm:text-sm text-gray-700 flex items-start">
+                    <li key={`planned-${idx}`} className="text-xs sm:text-sm text-gray-700 flex items-start">
                       <span className="text-blue-600 mr-1.5 sm:mr-2 mt-0.5 flex-shrink-0">•</span>
                       <span className="break-words">{task}</span>
                     </li>

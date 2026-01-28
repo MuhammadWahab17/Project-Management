@@ -22,8 +22,8 @@ export async function GET(
       include: {
         project: true,
         weeklyProgress: {
-          orderBy: { weekStartDate: "desc" },
-          take: 1, // Get the most recent week
+          orderBy: { createdAt: "desc" },
+          take: 1, // Get the most recently created week (this ensures we get the latest week added)
         },
       },
     });

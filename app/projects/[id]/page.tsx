@@ -287,7 +287,7 @@ export default async function ProjectDetailPage({
                       </div>
 
                           {/* Weekly Progress Preview */}
-                          {milestone.isCurrent && (
+                          {milestone.weeklyProgress.length > 0 && (
                             <div className="mt-4 pt-4 border-t border-gray-200">
                               <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
@@ -296,7 +296,7 @@ export default async function ProjectDetailPage({
                                   </svg>
                                   <span className="text-sm font-medium text-gray-700">Weekly Progress</span>
                                 </div>
-                                {canEditProject && (
+                                {canEditProject && milestone.isCurrent && (
                                   <WeeklyProgressLink
                                     href={`/weekly-progress/new?milestoneId=${milestone.id}`}
                                     variant="button"
@@ -312,7 +312,7 @@ export default async function ProjectDetailPage({
                                 <>
                                   <div className="text-xs text-gray-500 mb-3">{progressCount} report{progressCount !== 1 ? 's' : ''}</div>
                                   <div className="space-y-2">
-                                    {milestone.weeklyProgress.slice(0, 2).map((progress, index) => {
+                                    {milestone.weeklyProgress.map((progress, index) => {
                                       // Group progress by unique weekStartDate and assign sequential week numbers
                                       const uniqueWeeks = Array.from(new Set(
                                         milestone.weeklyProgress
@@ -340,22 +340,27 @@ export default async function ProjectDetailPage({
                                     })}
                                   </div>
                                 </>
-                              ) : (
-                                <div className="text-center py-6 bg-gray-50 rounded-lg border border-gray-200">
-                                  <p className="text-sm text-gray-600 mb-2">No progress reports yet</p>
-                                  {canEditProject && (
-                                    <WeeklyProgressLink
-                                      href={`/weekly-progress/new?milestoneId=${milestone.id}`}
-                                      variant="link"
-                                    >
-                                      Create First Report
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                      </svg>
-                                    </WeeklyProgressLink>
-                                  )}
-                                </div>
-                              )}
+                              ) : null}
+                        </div>
+                      )}
+                      
+                      {/* Show empty state only for current milestones without progress */}
+                      {milestone.isCurrent && milestone.weeklyProgress.length === 0 && (
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          <div className="text-center py-6 bg-gray-50 rounded-lg border border-gray-200">
+                            <p className="text-sm text-gray-600 mb-2">No progress reports yet</p>
+                            {canEditProject && (
+                              <WeeklyProgressLink
+                                href={`/weekly-progress/new?milestoneId=${milestone.id}`}
+                                variant="link"
+                              >
+                                Create First Report
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </WeeklyProgressLink>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>

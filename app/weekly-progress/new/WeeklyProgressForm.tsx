@@ -50,6 +50,26 @@ export default function WeeklyProgressForm() {
     return Math.round((completedCount / tasks.length) * 100 * 100) / 100; // Round to 2 decimal places
   };
 
+  // Automatically update goalsAchieved when all tasks are completed
+  useEffect(() => {
+    const validTasks = formData.completedThisWeek.filter(t => t.trim() !== "");
+    if (validTasks.length === 0) {
+      setFormData((prev) => ({ ...prev, goalsAchieved: false }));
+      return;
+    }
+    
+    // Check if all valid tasks are completed by matching indices
+    const allTasksCompleted = formData.completedThisWeek.every((task, index) => {
+      // Skip empty tasks
+      if (task.trim() === "") return true;
+      // Check if the task at this index is completed
+      const delay = formData.taskDelays[index];
+      return delay?.isCompleted === true;
+    });
+    
+    setFormData((prev) => ({ ...prev, goalsAchieved: allTasksCompleted }));
+  }, [formData.completedThisWeek, formData.taskDelays]);
+
   useEffect(() => {
     const sunday = getCurrentWeekSunday();
     const saturday = getCurrentWeekSaturday();
@@ -76,21 +96,34 @@ export default function WeeklyProgressForm() {
             setIsoWeek(currentIsoWeek);
           }
           
-          // Check if there's a previous week's progress and carry over incomplete tasks
+          // Check if there's a previous week's progress and carry over incomplete tasks and planned tasks
           if (data.weeklyProgress && data.weeklyProgress.length > 0) {
             const previousWeek = data.weeklyProgress[0];
             const previousCompletedTasks = JSON.parse(previousWeek.completedThisWeek || "[]");
+            const previousPlannedTasks = JSON.parse(previousWeek.plannedForNextWeek || "[]");
             const previousTaskDelays: Array<{ task: string; isCompleted: boolean; delayReasons?: string[]; delayReasonText?: string }> = 
               previousWeek.taskDelays ? JSON.parse(previousWeek.taskDelays) : [];
             
-            // Find incomplete tasks from previous week
+            // Get incomplete tasks from previous week's "completedThisWeek"
             const incompleteTasks: string[] = [];
             const incompleteTaskDelays: TaskDelay[] = [];
             
             previousCompletedTasks.forEach((task: string, index: number) => {
-              const taskDelay = previousTaskDelays[index] || { task, isCompleted: false };
-              // Only carry over tasks that are not completed
-              if (!taskDelay.isCompleted && task.trim() !== "") {
+              if (task.trim() === "") return; // Skip empty tasks
+              
+              // Try to find delay by index first (most reliable since they should match)
+              let taskDelay: { task: string; isCompleted: boolean; delayReasons?: string[]; delayReasonText?: string } | undefined = previousTaskDelays[index];
+              
+              // If index doesn't match or delay not found, try to find by task name
+              if (!taskDelay) {
+                taskDelay = previousTaskDelays.find((d: { task: string; isCompleted: boolean }) => d.task === task);
+              }
+              
+              // Check if task is completed - explicitly check for true
+              const isCompleted = taskDelay ? (taskDelay.isCompleted === true) : false;
+              
+              // Only carry over tasks that are NOT completed
+              if (!isCompleted) {
                 incompleteTasks.push(task);
                 incompleteTaskDelays.push({
                   task,
@@ -101,12 +134,32 @@ export default function WeeklyProgressForm() {
               }
             });
             
-            // Add incomplete tasks to the current week's tasks
-            if (incompleteTasks.length > 0) {
+            // Get tasks from previous week's "plannedForNextWeek"
+            const plannedTasks: string[] = [];
+            const plannedTaskDelays: TaskDelay[] = [];
+            
+            previousPlannedTasks.forEach((task: string) => {
+              if (task.trim() !== "") {
+                plannedTasks.push(task);
+                plannedTaskDelays.push({
+                  task,
+                  isCompleted: false, // Start as not completed - user can mark as complete
+                  delayReasons: [], // No delay reasons initially
+                  delayReasonText: undefined,
+                });
+              }
+            });
+            
+            // Combine incomplete tasks and planned tasks
+            const allTasksFromPreviousWeek = [...incompleteTasks, ...plannedTasks];
+            const allTaskDelaysFromPreviousWeek = [...incompleteTaskDelays, ...plannedTaskDelays];
+            
+            // Add all tasks from previous week to the current week's completed tasks section
+            if (allTasksFromPreviousWeek.length > 0) {
               setFormData((prev) => ({
                 ...prev,
-                completedThisWeek: [...incompleteTasks, ""],
-                taskDelays: [...incompleteTaskDelays, { task: "", isCompleted: false, delayReasons: [] }],
+                completedThisWeek: [...allTasksFromPreviousWeek, ""],
+                taskDelays: [...allTaskDelaysFromPreviousWeek, { task: "", isCompleted: false, delayReasons: [] }],
               }));
             }
           }
@@ -232,6 +285,17 @@ export default function WeeklyProgressForm() {
       return;
     }
 
+    // Validate that incomplete tasks have delay reasons
+    for (let i = 0; i < validTasks.length; i++) {
+      const originalIndex = formData.completedThisWeek.indexOf(validTasks[i]);
+      const delay = formData.taskDelays[originalIndex] || { task: validTasks[i], isCompleted: false, delayReasons: [] };
+      if (!delay.isCompleted && (!delay.delayReasons || delay.delayReasons.length === 0)) {
+        setToast({ message: `Please mark task "${validTasks[i]}" as completed or select a delay reason`, type: "error", isVisible: true });
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       // Prepare taskDelays - ensure it matches completedThisWeek length
       const taskDelaysForSave = validTasks.map((task, index) => {
@@ -269,6 +333,8 @@ export default function WeeklyProgressForm() {
         setToast({ message: "Weekly progress created successfully!", type: "success", isVisible: true });
         setTimeout(() => {
           router.push(`/projects/${progress.projectId}`);
+          // Refresh will happen automatically on navigation, but we can force it
+          setTimeout(() => router.refresh(), 100);
         }, 1000);
       } else {
         const error = await response.json();
@@ -386,7 +452,7 @@ export default function WeeklyProgressForm() {
                     {!isCompleted && (
                       <div className="mt-3 pt-3 border-t border-gray-300">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Delay Reason (if not completed):
+                          Delay Reason (required if not completed):
                         </label>
                         <div className="space-y-2">
                           <label className="flex items-center cursor-pointer">

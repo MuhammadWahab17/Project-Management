@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Toast from "@/components/Toast";
 
 interface TaskDelay {
@@ -54,6 +54,26 @@ export default function EditWeeklyProgressModal({
     return Math.round((completedCount / tasks.length) * 100 * 100) / 100; // Round to 2 decimal places
   };
 
+  // Automatically update goalsAchieved when all tasks are completed
+  useEffect(() => {
+    const validTasks = completedTasks.filter(t => t.trim() !== "");
+    if (validTasks.length === 0) {
+      setGoalsAchieved(false);
+      return;
+    }
+    
+    // Check if all valid tasks are completed by matching indices
+    const allTasksCompleted = completedTasks.every((task, index) => {
+      // Skip empty tasks
+      if (task.trim() === "") return true;
+      // Check if the task at this index is completed
+      const delay = taskDelays[index];
+      return delay?.isCompleted === true;
+    });
+    
+    setGoalsAchieved(allTasksCompleted);
+  }, [completedTasks, taskDelays]);
+
   const showToast = (message: string, type: "success" | "error" | "info" = "info") => {
     setToast({ message, type, isVisible: true });
   };
@@ -85,12 +105,10 @@ export default function EditWeeklyProgressModal({
 
   const addPlannedTask = () => {
     setPlannedTasks([...plannedTasks, ""]);
-    setTaskDelays([...taskDelays, { task: "", isCompleted: false }]);
   };
 
   const removePlannedTask = (index: number) => {
     setPlannedTasks(plannedTasks.filter((_, i) => i !== index));
-    setTaskDelays(taskDelays.filter((_, i) => i !== index));
   };
 
   const updatePlannedTask = (index: number, value: string) => {
@@ -150,6 +168,18 @@ export default function EditWeeklyProgressModal({
     try {
       // Prepare taskDelays - ensure it matches completedTasks length
       const validTasks = completedTasks.filter((t) => t.trim() !== "");
+      
+      // Validate that incomplete tasks have delay reasons
+      for (let i = 0; i < validTasks.length; i++) {
+        const originalIndex = completedTasks.indexOf(validTasks[i]);
+        const delay = taskDelays[originalIndex] || { task: validTasks[i], isCompleted: false, delayReasons: [] };
+        if (!delay.isCompleted && (!delay.delayReasons || delay.delayReasons.length === 0)) {
+          showToast(`Please mark task "${validTasks[i]}" as completed or select a delay reason`, "error");
+          setLoading(false);
+          return;
+        }
+      }
+      
       const taskDelaysForSave = validTasks.map((task, index) => {
         const originalIndex = completedTasks.indexOf(task);
         return taskDelays[originalIndex] || { task, isCompleted: false, delayReasons: [] };
@@ -259,7 +289,7 @@ export default function EditWeeklyProgressModal({
                       {!isCompleted && (
                         <div className="mt-3 pt-3 border-t border-gray-300">
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Delay Reason (if not completed):
+                            Delay Reason (required if not completed):
                           </label>
                           <div className="space-y-2">
                             <label className="flex items-center cursor-pointer">
