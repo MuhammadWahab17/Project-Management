@@ -81,27 +81,34 @@ export async function POST(request: NextRequest) {
       const smtpUser = config.smtp.user;
       const appUrl = config.appUrl;
       const companyName = config.companyName;
+      
+      // Check recipient type - include project name in subject for clients
+      const emailSubject = reminder.recipientType === "client"
+        ? `[${reminder.project.name}] ${reminder.subject}`
+        : reminder.subject;
+      
       console.log("Attempting to send reminder email...");
       console.log("From:", smtpUser);
       console.log("To:", reminder.recipientEmail);
-      console.log("Subject:", reminder.subject);
+      console.log("Recipient Type:", reminder.recipientType);
+      console.log("Subject:", emailSubject);
 
       await transporter.sendMail({
         from: `"${companyName}" <${smtpUser}>`,
         to: reminder.recipientEmail,
-        subject: reminder.subject,
+        subject: emailSubject,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb;">${reminder.subject}</h2>
+            <h2 style="color: #2563eb;">${emailSubject}</h2>
             <p><strong>Project:</strong> ${reminder.project.name}</p>
             <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
               ${reminder.message.replace(/\n/g, '<br>')}
             </div>
             <p style="color: #6b7280; font-size: 12px;">This is an automated reminder from <a href="${appUrl}" style="color: #2563eb; text-decoration: none;">${companyName}</a>.</p>
           </div>
-        `,
-        text: `
-${reminder.subject}
+          `,
+          text: `
+${emailSubject}
 
 Project: ${reminder.project.name}
 
@@ -190,13 +197,18 @@ export async function GET() {
 
     for (const reminder of dueReminders) {
       try {
+        // Check recipient type - include project name in subject for clients
+        const emailSubject = reminder.recipientType === "client"
+          ? `[${reminder.project.name}] ${reminder.subject}`
+          : reminder.subject;
+        
         await transporter.sendMail({
           from: `"${companyName}" <${smtpUser}>`,
           to: reminder.recipientEmail,
-          subject: reminder.subject,
+          subject: emailSubject,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #2563eb;">${reminder.subject}</h2>
+              <h2 style="color: #2563eb;">${emailSubject}</h2>
               <p><strong>Project:</strong> ${reminder.project.name}</p>
               <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 ${reminder.message.replace(/\n/g, '<br>')}
@@ -205,7 +217,7 @@ export async function GET() {
             </div>
           `,
           text: `
-${reminder.subject}
+${emailSubject}
 
 Project: ${reminder.project.name}
 

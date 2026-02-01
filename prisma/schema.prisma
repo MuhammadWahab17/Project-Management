@@ -68,6 +68,7 @@ model EmailReminder {
   subject       String
   message       String
   recipientEmail String
+  recipientType String   @default("user") // "client" or "user"
   reminderDate  DateTime
   status        String   @default("scheduled") // scheduled | sent | cancelled
   createdAt     DateTime @default(now())

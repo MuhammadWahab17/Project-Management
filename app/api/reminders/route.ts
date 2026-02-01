@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { projectId, subject, message, recipientEmail, reminderDate } = body;
+    const { projectId, subject, message, recipientEmail, recipientType, reminderDate } = body;
 
     if (!projectId || !subject || !message || !recipientEmail || !reminderDate) {
       return NextResponse.json(
@@ -69,6 +69,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Validate recipientType
+    const validRecipientType = recipientType === "client" ? "client" : "user";
 
     // Verify user has access to the project
     const project = await prisma.project.findUnique({
@@ -96,6 +99,7 @@ export async function POST(request: NextRequest) {
         subject,
         message,
         recipientEmail,
+        recipientType: validRecipientType,
         reminderDate: new Date(reminderDate),
         status: "scheduled",
       },

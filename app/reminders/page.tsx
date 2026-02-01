@@ -12,6 +12,7 @@ interface Reminder {
   subject: string;
   message: string;
   recipientEmail: string;
+  recipientType: string;
   reminderDate: string;
   status: string;
   project: {
@@ -32,6 +33,7 @@ export default function RemindersPage() {
     subject: "",
     message: "",
     recipientEmail: "",
+    recipientType: "user", // "client" or "user"
     reminderDate: "",
   });
   const [projects, setProjects] = useState<any[]>([]);
@@ -114,7 +116,14 @@ export default function RemindersPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          projectId: formData.projectId,
+          subject: formData.subject,
+          message: formData.message,
+          recipientEmail: formData.recipientEmail,
+          recipientType: formData.recipientType,
+          reminderDate: formData.reminderDate,
+        }),
       });
 
       if (response.ok) {
@@ -124,6 +133,7 @@ export default function RemindersPage() {
           subject: "",
           message: "",
           recipientEmail: "",
+          recipientType: "user",
           reminderDate: "",
         });
         await fetchReminders();
@@ -335,18 +345,35 @@ export default function RemindersPage() {
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">
-                      Reminder Date & Time *
+                      Recipient Type *
                     </label>
-                    <input
-                      type="datetime-local"
+                    <select
                       required
-                      value={formData.reminderDate}
+                      value={formData.recipientType}
                       onChange={(e) =>
-                        setFormData({ ...formData, reminderDate: e.target.value })
+                        setFormData({ ...formData, recipientType: e.target.value })
                       }
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+                    >
+                      <option value="user">User</option>
+                      <option value="client">Client</option>
+                    </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">
+                    Reminder Date & Time *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={formData.reminderDate}
+                    onChange={(e) =>
+                      setFormData({ ...formData, reminderDate: e.target.value })
+                    }
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
 
                 <div className="flex space-x-3 pt-2">
