@@ -56,6 +56,19 @@ export const authOptions: NextAuthOptions = {
           };
         }
         
+        // Areej - can only view own projects
+        if (
+          credentials.email === "areej@softechinc.ai" &&
+          credentials.password === "tech@321#$"
+        ) {
+          return {
+            id: "4",
+            email: "areej@softechinc.ai",
+            name: "Areej",
+            role: "user",
+          };
+        }
+        
         return null;
       },
     }),

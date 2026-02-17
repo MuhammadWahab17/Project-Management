@@ -34,6 +34,7 @@ export default function ProjectsPage() {
     if (email === "manager@softechinc.ai") return "Manager";
     if (email === "nazish@softechinc.ai") return "Nazish";
     if (email === "soban@softechinc.ai") return "Soban";
+    if (email === "areej@softechinc.ai") return "Areej";
     return email;
   };
 
@@ -43,6 +44,7 @@ export default function ProjectsPage() {
     if (email === "manager@softechinc.ai") return "bg-blue-100 text-blue-700 border-blue-200";
     if (email === "nazish@softechinc.ai") return "bg-purple-100 text-purple-700 border-purple-200";
     if (email === "soban@softechinc.ai") return "bg-green-100 text-green-700 border-green-200";
+    if (email === "areej@softechinc.ai") return "bg-orange-100 text-orange-700 border-orange-200";
     return "bg-gray-100 text-gray-700 border-gray-200";
   };
 
@@ -152,6 +154,7 @@ export default function ProjectsPage() {
                       {creatorFilter === currentUserEmail && "My Projects"}
                       {creatorFilter === "nazish@softechinc.ai" && "Nazish's Projects"}
                       {creatorFilter === "soban@softechinc.ai" && "Soban's Projects"}
+                      {creatorFilter === "areej@softechinc.ai" && "Areej's Projects"}
                     </span>
                     <svg
                       className={`w-5 h-5 text-gray-400 transition-transform ${dropdownOpen ? "transform rotate-180" : ""}`}
@@ -216,6 +219,18 @@ export default function ProjectsPage() {
                           }`}
                         >
                           Soban's Projects
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCreatorFilter("areej@softechinc.ai");
+                            setDropdownOpen(false);
+                          }}
+                          className={`w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 transition-colors ${
+                            creatorFilter === "areej@softechinc.ai" ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-900"
+                          }`}
+                        >
+                          Areej's Projects
                         </button>
                       </div>
                     </>
